@@ -236,8 +236,9 @@
     sun.shadow.camera.left = sun.shadow.camera.bottom = -15;
     sun.shadow.camera.right = sun.shadow.camera.top   =  15;
     scene.add(sun);
-    scene.add(Object.assign(new THREE.DirectionalLight(0x2244ff, 1.8),
-      { position: new THREE.Vector3(-10, 5, -10) }));
+    const rimLight = new THREE.DirectionalLight(0x2244ff, 1.8);
+    rimLight.position.set(-10, 5, -10);
+    scene.add(rimLight);
 
     // ── Board ──────────────────────────────────────────────────────────────────
     const floor = new THREE.Mesh(
