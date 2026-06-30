@@ -258,25 +258,17 @@
       new THREE.LineBasicMaterial({ color: 0x0066cc })));
 
     // ── Snake Materials ────────────────────────────────────────────────────────
-    const segGeo = new THREE.BoxGeometry(0.86, 0.86, 0.86);
+    const segGeo  = new THREE.BoxGeometry(0.86, 0.86, 0.86);
+    const headGeo = new THREE.SphereGeometry(0.52, 28, 28);
 
     const faceTex = new THREE.TextureLoader().load('face.jpg');
     faceTex.colorSpace = THREE.SRGBColorSpace;
 
-    const headSideMat = new THREE.MeshStandardMaterial({
-      color: 0x00ff88, emissive: 0x00cc55, emissiveIntensity: 0.9,
-      roughness: 0.12, metalness: 0.75
+    const headMat = new THREE.MeshStandardMaterial({
+      map: faceTex,
+      emissive: 0x221100, emissiveIntensity: 0.15,
+      roughness: 0.35, metalness: 0.05
     });
-    const faceMat = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.3, metalness: 0.1 });
-    // [+X, -X, +Y(top), -Y, +Z(frente→câmera), -Z]
-    const headMats = [
-      headSideMat, headSideMat,
-      faceMat,        // top (+Y)
-      headSideMat,
-      faceMat,        // frente (+Z) — face visível pela câmera
-      headSideMat,
-    ];
-
     const bodyMat = new THREE.MeshStandardMaterial({
       color: 0x00bb66, emissive: 0x003322, emissiveIntensity: 0.35,
       roughness: 0.28, metalness: 0.55
@@ -318,10 +310,10 @@
     function toWorld(x, z) { return [x - HALF + 0.5, z - HALF + 0.5]; }
 
     function makeSeg(pos, isHead) {
-      const m = new THREE.Mesh(segGeo, isHead ? headMats : bodyMat);
+      const m = new THREE.Mesh(isHead ? headGeo : segGeo, isHead ? headMat : bodyMat);
       m.castShadow = m.receiveShadow = true;
       const [wx, wz] = toWorld(pos.x, pos.z);
-      m.position.set(wx, 0.5, wz);
+      m.position.set(wx, isHead ? 0.52 : 0.43, wz);
       scene.add(m);
       return m;
     }
@@ -364,7 +356,13 @@
       const body = willEat ? snake : snake.slice(0, -1);
       if (body.some(s => s.x === nh.x && s.z === nh.z)) return gameOver();
       if (!willEat) { scene.remove(segs.pop()); snake.pop(); }
-      if (segs[0]) segs[0].material = bodyMat;
+      if (segs[0]) {
+        const old = segs[0];
+        const cube = new THREE.Mesh(segGeo, bodyMat);
+        cube.castShadow = cube.receiveShadow = true;
+        cube.position.copy(old.position); cube.position.y = 0.43;
+        scene.remove(old); scene.add(cube); segs[0] = cube;
+      }
       segs.unshift(makeSeg(nh, true));
       snake.unshift(nh);
       if (willEat) { score++; scoreEl.textContent = `SCORE: ${score}`; spawnFood(); }
@@ -442,7 +440,7 @@
       mug.position.y = 0.5 + Math.sin(t * 2.8) * 0.14;
       mug.rotation.y = t * 1.2;
       mugGlow.intensity = 4 + Math.sin(t * 5) * 1.5;
-      headSideMat.emissiveIntensity = 0.75 + Math.sin(t * 4) * 0.2;
+      headMat.emissiveIntensity = 0.1 + Math.sin(t * 4) * 0.08;
       renderer.render(scene, camera);
     })();
   </script>
