@@ -392,6 +392,7 @@
 
     // ── Direction helper ───────────────────────────────────────────────────────
     function applyDir(dx, dz) {
+      if (!dir) return; // jogo ainda não iniciado
       if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, z: 0 };
       if (dz !== 0 && dir.z !== -dz) nextDir = { x: 0, z: dz };
     }
