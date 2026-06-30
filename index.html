@@ -158,12 +158,9 @@
     </div>
   </div>
 
-  <script type="importmap">
-  { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
-  <script type="module">
-    import * as THREE from 'three';
+  <script>
 
     const GRID = 20, HALF = GRID / 2, TICK = 140;
 
@@ -189,6 +186,7 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25;
+    renderer.setClearColor(0x050514);
     document.body.prepend(renderer.domElement);
 
     // ── Scene & Camera ─────────────────────────────────────────────────────────
@@ -200,41 +198,21 @@
     // Fixed camera direction: (0,25,17) normalised → angle doesn't change, only distance
     const CAM_DIR = new THREE.Vector3(0, 25, 17).normalize();
 
-    // Board corners + 1 unit height to account for snake/mug geometry
-    const FIT_CORNERS = [
-      [-HALF, 0, -HALF], [HALF, 0, -HALF], [HALF, 0, HALF], [-HALF, 0, HALF],
-      [-HALF, 1, -HALF], [HALF, 1, -HALF], [HALF, 1, HALF], [-HALF, 1, HALF],
-    ].map(([x,y,z]) => new THREE.Vector3(x, y, z));
-
-    function fitCameraToBoard() {
-      const tmpProj = new THREE.Matrix4();
-      const frustum = new THREE.Frustum();
-      let lo = 10, hi = 300;
-
-      for (let i = 0; i < 32; i++) {
-        const mid = (lo + hi) / 2;
-        camera.position.copy(CAM_DIR.clone().multiplyScalar(mid));
-        camera.lookAt(0, 0, 0);
-        camera.updateProjectionMatrix();
-        camera.updateMatrixWorld();
-        tmpProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-        frustum.setFromProjectionMatrix(tmpProj);
-        if (FIT_CORNERS.every(c => frustum.containsPoint(c))) hi = mid;
-        else lo = mid;
-      }
-
-      // Apply with 10% padding so board has some margin
-      const dist = hi * 1.10;
+    // Calcula distância da câmera usando trigonometria pura (sem APIs de Frustum)
+    // Garante que o tabuleiro 20×20 cabe completamente em qualquer tamanho de ecrã
+    function updateCamera() {
+      const vHalf = THREE.MathUtils.degToRad(camera.fov / 2);
+      const hHalf = Math.atan(Math.tan(vHalf) * camera.aspect);
+      // HALF=10: metade do tabuleiro. A câmera precisa ver 10 unidades em ambas as direções
+      const dist = (HALF / Math.sin(Math.min(vHalf, hHalf))) * 1.35;
       camera.position.copy(CAM_DIR.clone().multiplyScalar(dist));
       camera.lookAt(0, 0, 0);
       camera.updateProjectionMatrix();
-
-      // Keep fog beyond the board, not inside it
-      scene.fog.near = dist * 1.1;
-      scene.fog.far  = dist * 4;
+      scene.fog.near = dist * 1.3;
+      scene.fog.far  = dist * 5;
     }
 
-    fitCameraToBoard();
+    updateCamera();
 
     // ── Lighting ───────────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0x112255, 3));
@@ -441,7 +419,7 @@
       const W = gameW(), H = gameH();
       renderer.setSize(W, H);
       camera.aspect = W / H;
-      fitCameraToBoard();
+      updateCamera();
     });
 
     // ── Render loop ────────────────────────────────────────────────────────────
