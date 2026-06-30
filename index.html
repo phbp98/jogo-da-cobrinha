@@ -5,87 +5,157 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Snake 3D</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #050514; overflow: hidden; font-family: 'Segoe UI', monospace; touch-action: none; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #050514;
+      overflow: hidden;
+      font-family: 'Segoe UI', monospace;
+      touch-action: none;
+    }
     canvas { display: block; touch-action: none; }
 
     #score {
       position: fixed;
-      top: 24px; left: 50%;
+      top: 16px; left: 50%;
       transform: translateX(-50%);
       color: #00ff88;
-      font-size: 1.8rem;
+      font-size: clamp(1.1rem, 4vw, 1.8rem);
       font-weight: 700;
       letter-spacing: 8px;
       text-shadow: 0 0 20px #00ff88, 0 0 50px #00cc6688;
       pointer-events: none;
       user-select: none;
+      z-index: 5;
     }
 
     #overlay {
       position: fixed; inset: 0;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      background: rgba(5, 5, 20, 0.82);
-      backdrop-filter: blur(6px);
+      background: rgba(5, 5, 20, 0.85);
+      backdrop-filter: blur(8px);
       cursor: pointer;
+      z-index: 20;
     }
     #overlay h1 {
-      font-size: clamp(2.5rem, 10vw, 5rem);
+      font-size: clamp(2rem, 10vw, 5rem);
       font-weight: 900;
       color: #00ff88;
       text-shadow: 0 0 40px #00ff88, 0 0 100px #00cc6655;
-      letter-spacing: 14px;
-      margin-bottom: 1.5rem;
+      letter-spacing: clamp(4px, 2vw, 14px);
+      margin-bottom: 1.2rem;
       animation: pulse 2s ease-in-out infinite;
     }
     @keyframes pulse {
       0%, 100% { text-shadow: 0 0 40px #00ff88, 0 0 80px #00cc6655; }
       50%       { text-shadow: 0 0 60px #00ffaa, 0 0 120px #00ff8877; }
     }
-    #overlay p    { color: #6688aa; font-size: clamp(0.8rem, 3vw, 1.05rem); margin: 0.35rem 0; letter-spacing: 3px; }
-    #overlay .sub { color: #334455; font-size: clamp(0.7rem, 2.5vw, 0.82rem); margin-top: 1.2rem; letter-spacing: 2px; }
+    #overlay p    { color: #6688aa; font-size: clamp(0.75rem, 3vw, 1rem); margin: 0.3rem 0; letter-spacing: 2px; }
+    #overlay .sub { color: #334455; font-size: clamp(0.65rem, 2.5vw, 0.82rem); margin-top: 0.9rem; }
     #overlay.hidden { display: none; }
 
-    #dpad {
+    /* ── D-pad ──────────────────────────────────────────────────────────── */
+
+    /* Portrait mobile: strip at bottom */
+    #dpad-wrap {
       position: fixed;
-      bottom: 28px; left: 50%;
-      transform: translateX(-50%);
-      display: grid;
-      grid-template-areas: ". up ." "left . right" ". down .";
-      gap: 6px;
+      bottom: 0; left: 0; right: 0;
+      height: 220px;
+      display: none;              /* shown only on coarse-pointer via JS */
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(to top, rgba(5,5,20,0.92) 55%, transparent);
       z-index: 10;
     }
-    .dbtn {
-      width: 64px; height: 64px;
-      background: rgba(0, 255, 136, 0.1);
-      border: 2px solid rgba(0, 255, 136, 0.35);
-      border-radius: 14px;
-      color: #00ff88; font-size: 1.6rem;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.08s, border-color 0.08s;
+
+    /* Landscape mobile: small floating D-pad, bottom-right */
+    @media (orientation: landscape) and (pointer: coarse) {
+      #dpad-wrap {
+        height: auto;
+        left: auto; right: 20px;
+        bottom: 16px; width: auto;
+        background: none;
+        padding: 8px;
+        border-radius: 20px;
+        background: rgba(5,5,20,0.55);
+        backdrop-filter: blur(6px);
+      }
     }
-    .dbtn:active { background: rgba(0,255,136,0.3); border-color: rgba(0,255,136,0.8); }
+
+    #dpad {
+      display: grid;
+      grid-template-areas: ". up ." "left mid right" ". down .";
+      grid-template-columns: repeat(3, 74px);
+      grid-template-rows: repeat(3, 74px);
+      gap: 5px;
+    }
+
+    /* Smaller D-pad in landscape */
+    @media (orientation: landscape) and (pointer: coarse) {
+      #dpad {
+        grid-template-columns: repeat(3, 56px);
+        grid-template-rows: repeat(3, 56px);
+        gap: 4px;
+      }
+      .dbtn { width: 56px !important; height: 56px !important; font-size: 1.4rem !important; border-radius: 12px !important; }
+      .dmid { width: 56px !important; height: 56px !important; }
+    }
+
+    .dbtn {
+      width: 74px; height: 74px;
+      background: rgba(0, 255, 136, 0.07);
+      border: 2px solid rgba(0, 255, 136, 0.28);
+      border-radius: 18px;
+      color: #00ff88;
+      font-size: 1.9rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.08s, border-color 0.08s, transform 0.06s;
+    }
+    .dbtn:active {
+      background: rgba(0, 255, 136, 0.26);
+      border-color: rgba(0, 255, 136, 0.9);
+      transform: scale(0.91);
+    }
     .dbtn[data-d="up"]    { grid-area: up; }
     .dbtn[data-d="left"]  { grid-area: left; }
     .dbtn[data-d="right"] { grid-area: right; }
     .dbtn[data-d="down"]  { grid-area: down; }
+
+    .dmid {
+      grid-area: mid;
+      width: 74px; height: 74px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .dmid::after {
+      content: '';
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(0,255,136,0.12);
+      border: 1.5px solid rgba(0,255,136,0.1);
+    }
   </style>
 </head>
 <body>
   <div id="score">SCORE: 0</div>
+
   <div id="overlay">
     <h1>SNAKE 3D</h1>
     <p>TOQUE para jogar</p>
-    <p class="sub">Deslize ou use os botões &nbsp;|&nbsp; WASD / ↑↓←→</p>
+    <p class="sub">Deslize ou use o D-pad &nbsp;|&nbsp; WASD / ↑↓←→</p>
   </div>
-  <div id="dpad">
-    <button class="dbtn" data-d="up">▲</button>
-    <button class="dbtn" data-d="left">◀</button>
-    <button class="dbtn" data-d="right">▶</button>
-    <button class="dbtn" data-d="down">▼</button>
+
+  <div id="dpad-wrap">
+    <div id="dpad">
+      <button class="dbtn" data-d="up">▲</button>
+      <button class="dbtn" data-d="left">◀</button>
+      <div class="dmid"></div>
+      <button class="dbtn" data-d="right">▶</button>
+      <button class="dbtn" data-d="down">▼</button>
+    </div>
   </div>
 
   <script type="importmap">
@@ -97,10 +167,24 @@
 
     const GRID = 20, HALF = GRID / 2, TICK = 140;
 
+    // ── Touch/pointer detection ────────────────────────────────────────────────
+    const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+    const DPAD_H = 220; // reserved height for portrait D-pad
+
+    const dpadWrap = document.getElementById('dpad-wrap');
+    if (isCoarse) dpadWrap.style.display = 'flex';
+
+    function gameW() { return innerWidth; }
+    function gameH() {
+      // Portrait touch: leave room for D-pad strip
+      if (isCoarse && innerWidth <= innerHeight) return innerHeight - DPAD_H;
+      return innerHeight;
+    }
+
     // ── Renderer ───────────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setSize(innerWidth, innerHeight);
+    renderer.setSize(gameW(), gameH());
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -109,11 +193,48 @@
 
     // ── Scene & Camera ─────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x050514, 0.032);
+    scene.fog = new THREE.Fog(0x050514, 60, 220); // updated dynamically after fit
 
-    const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 500);
-    camera.position.set(0, 25, 17);
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.PerspectiveCamera(50, gameW() / gameH(), 0.1, 600);
+
+    // Fixed camera direction: (0,25,17) normalised → angle doesn't change, only distance
+    const CAM_DIR = new THREE.Vector3(0, 25, 17).normalize();
+
+    // Board corners + 1 unit height to account for snake/mug geometry
+    const FIT_CORNERS = [
+      [-HALF, 0, -HALF], [HALF, 0, -HALF], [HALF, 0, HALF], [-HALF, 0, HALF],
+      [-HALF, 1, -HALF], [HALF, 1, -HALF], [HALF, 1, HALF], [-HALF, 1, HALF],
+    ].map(([x,y,z]) => new THREE.Vector3(x, y, z));
+
+    function fitCameraToBoard() {
+      const tmpProj = new THREE.Matrix4();
+      const frustum = new THREE.Frustum();
+      let lo = 10, hi = 300;
+
+      for (let i = 0; i < 32; i++) {
+        const mid = (lo + hi) / 2;
+        camera.position.copy(CAM_DIR.clone().multiplyScalar(mid));
+        camera.lookAt(0, 0, 0);
+        camera.updateProjectionMatrix();
+        camera.updateMatrixWorld();
+        tmpProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+        frustum.setFromProjectionMatrix(tmpProj);
+        if (FIT_CORNERS.every(c => frustum.containsPoint(c))) hi = mid;
+        else lo = mid;
+      }
+
+      // Apply with 10% padding so board has some margin
+      const dist = hi * 1.10;
+      camera.position.copy(CAM_DIR.clone().multiplyScalar(dist));
+      camera.lookAt(0, 0, 0);
+      camera.updateProjectionMatrix();
+
+      // Keep fog beyond the board, not inside it
+      scene.fog.near = dist * 1.1;
+      scene.fog.far  = dist * 4;
+    }
+
+    fitCameraToBoard();
 
     // ── Lighting ───────────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0x112255, 3));
@@ -122,9 +243,10 @@
     sun.position.set(10, 20, 8);
     sun.castShadow = true;
     sun.shadow.mapSize.setScalar(2048);
-    sun.shadow.camera.near = 1; sun.shadow.camera.far = 70;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far  = 300; // large enough for mobile zoomed-out camera
     sun.shadow.camera.left = sun.shadow.camera.bottom = -15;
-    sun.shadow.camera.right = sun.shadow.camera.top = 15;
+    sun.shadow.camera.right = sun.shadow.camera.top   =  15;
     scene.add(sun);
     scene.add(Object.assign(new THREE.DirectionalLight(0x2244ff, 1.8),
       { position: new THREE.Vector3(-10, 5, -10) }));
@@ -149,7 +271,6 @@
     // ── Snake Materials ────────────────────────────────────────────────────────
     const segGeo = new THREE.BoxGeometry(0.86, 0.86, 0.86);
 
-    // Face texture applied to the top face (+Y = index 2) of the head box
     const faceTex = new THREE.TextureLoader().load('face.jpg');
     faceTex.colorSpace = THREE.SRGBColorSpace;
     faceTex.center.set(0.5, 0.5);
@@ -159,11 +280,11 @@
       color: 0x00ff88, emissive: 0x00cc55, emissiveIntensity: 0.9,
       roughness: 0.12, metalness: 0.75
     });
-    // BoxGeometry material order: [+X, -X, +Y(top), -Y, +Z, -Z]
+    // [+X, -X, +Y(top/face), -Y, +Z, -Z]
     const headMats = [
       headSideMat, headSideMat,
       new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.3, metalness: 0.1 }),
-      headSideMat, headSideMat, headSideMat
+      headSideMat, headSideMat, headSideMat,
     ];
 
     const bodyMat = new THREE.MeshStandardMaterial({
@@ -173,47 +294,37 @@
 
     // ── Beer Mug (food) ────────────────────────────────────────────────────────
     function createMug() {
-      const group = new THREE.Group();
+      const g    = new THREE.Group();
       const gold = new THREE.MeshStandardMaterial({ color: 0xf0a825, roughness: 0.35, metalness: 0.25 });
       const foam = new THREE.MeshStandardMaterial({ color: 0xfff8e7, roughness: 0.92 });
 
-      // Body
       const body = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.21, 0.65, 16), gold);
-      body.castShadow = true;
-      group.add(body);
+      body.castShadow = true; g.add(body);
 
-      // Foam ring
-      const foamRing = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.27, 0.14, 16), foam);
-      foamRing.position.y = 0.395;
-      group.add(foamRing);
+      const fr = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.27, 0.14, 16), foam);
+      fr.position.y = 0.395; g.add(fr);
 
-      // Foam dome
-      const foamDome = new THREE.Mesh(
+      const fd = new THREE.Mesh(
         new THREE.SphereGeometry(0.29, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), foam);
-      foamDome.position.y = 0.465;
-      group.add(foamDome);
+      fd.position.y = 0.465; g.add(fd);
 
-      // Handle: 3 boxes forming a D shape
       [
-        { s: [0.13, 0.05, 0.05], p: [0.33,  0.18, 0] },
-        { s: [0.05, 0.36, 0.05], p: [0.37,  0,    0] },
-        { s: [0.13, 0.05, 0.05], p: [0.33, -0.18, 0] },
+        { s:[0.13,0.05,0.05], p:[0.33, 0.18,0] },
+        { s:[0.05,0.36,0.05], p:[0.37, 0,   0] },
+        { s:[0.13,0.05,0.05], p:[0.33,-0.18,0] },
       ].forEach(({ s, p }) => {
         const m = new THREE.Mesh(new THREE.BoxGeometry(...s), gold);
-        m.position.set(...p);
-        m.castShadow = true;
-        group.add(m);
+        m.position.set(...p); m.castShadow = true; g.add(m);
       });
 
       const glow = new THREE.PointLight(0xffaa00, 5, 7);
-      group.add(glow);
-      return { group, glow };
+      g.add(glow);
+      return { group: g, glow };
     }
-
     const { group: mug, glow: mugGlow } = createMug();
     scene.add(mug);
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
+    // ── Game helpers ───────────────────────────────────────────────────────────
     function toWorld(x, z) { return [x - HALF + 0.5, z - HALF + 0.5]; }
 
     function makeSeg(pos, isHead) {
@@ -225,7 +336,7 @@
       return m;
     }
 
-    // ── Game State ─────────────────────────────────────────────────────────────
+    // ── Game state ─────────────────────────────────────────────────────────────
     let snake, dir, nextDir, food, score, alive, tickId;
     const segs = [];
     const scoreEl = document.getElementById('score');
@@ -270,12 +381,11 @@
     }
 
     function gameOver() {
-      alive = false;
-      clearInterval(tickId);
+      alive = false; clearInterval(tickId);
       overlay.innerHTML = `
         <h1>GAME OVER</h1>
-        <p>PONTUAÇÃO FINAL: ${score}</p>
-        <p class="sub">TOQUE ou pressione ENTER para recomeçar</p>
+        <p>PONTUAÇÃO: ${score}</p>
+        <p class="sub">TOQUE ou ENTER para recomeçar</p>
       `;
       overlay.classList.remove('hidden');
     }
@@ -297,16 +407,16 @@
       if (k.startsWith('Arrow')) e.preventDefault();
     });
 
-    // ── D-pad ──────────────────────────────────────────────────────────────────
+    // ── D-pad buttons ──────────────────────────────────────────────────────────
     const dirMap = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
     document.querySelectorAll('.dbtn').forEach(btn => {
       const [dx, dz] = dirMap[btn.dataset.d];
       const press = e => { e.preventDefault(); applyDir(dx, dz); };
       btn.addEventListener('touchstart', press, { passive: false });
-      btn.addEventListener('mousedown', press);
+      btn.addEventListener('mousedown',  press);
     });
 
-    // ── Swipe ──────────────────────────────────────────────────────────────────
+    // ── Swipe on game canvas ───────────────────────────────────────────────────
     let tx0, ty0;
     renderer.domElement.addEventListener('touchstart', e => {
       tx0 = e.touches[0].clientX; ty0 = e.touches[0].clientY;
@@ -315,24 +425,25 @@
     renderer.domElement.addEventListener('touchend', e => {
       const dx = e.changedTouches[0].clientX - tx0;
       const dz = e.changedTouches[0].clientY - ty0;
-      if (Math.abs(dx) < 12 && Math.abs(dz) < 12) return;
+      if (Math.abs(dx) < 15 && Math.abs(dz) < 15) return; // tap, not swipe
       if (Math.abs(dx) > Math.abs(dz)) applyDir(dx > 0 ? 1 : -1, 0);
       else                              applyDir(0, dz > 0 ? 1 : -1);
       e.preventDefault();
     }, { passive: false });
 
-    // ── Tap overlay ────────────────────────────────────────────────────────────
+    // ── Tap overlay to start/restart ───────────────────────────────────────────
     overlay.addEventListener('touchstart', e => { e.preventDefault(); resetGame(); }, { passive: false });
     overlay.addEventListener('click', () => { if (!alive) resetGame(); });
 
-    // ── Resize ─────────────────────────────────────────────────────────────────
+    // ── Resize ────────────────────────────────────────────────────────────────
     window.addEventListener('resize', () => {
-      camera.aspect = innerWidth / innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth, innerHeight);
+      const W = gameW(), H = gameH();
+      renderer.setSize(W, H);
+      camera.aspect = W / H;
+      fitCameraToBoard();
     });
 
-    // ── Render Loop ────────────────────────────────────────────────────────────
+    // ── Render loop ────────────────────────────────────────────────────────────
     let t = 0;
     (function animate() {
       requestAnimationFrame(animate);
