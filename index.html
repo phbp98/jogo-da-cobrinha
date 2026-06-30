@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Snake 3D</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #050514; overflow: hidden; font-family: 'Segoe UI', monospace; }
-    canvas { display: block; }
+    body { background: #050514; overflow: hidden; font-family: 'Segoe UI', monospace; touch-action: none; }
+    canvas { display: block; touch-action: none; }
 
     #score {
       position: fixed;
@@ -28,9 +28,11 @@
       align-items: center; justify-content: center;
       background: rgba(5, 5, 20, 0.82);
       backdrop-filter: blur(6px);
+      cursor: pointer;
     }
     #overlay h1 {
-      font-size: 5rem; font-weight: 900;
+      font-size: clamp(2.5rem, 10vw, 5rem);
+      font-weight: 900;
       color: #00ff88;
       text-shadow: 0 0 40px #00ff88, 0 0 100px #00cc6655;
       letter-spacing: 14px;
@@ -41,17 +43,57 @@
       0%, 100% { text-shadow: 0 0 40px #00ff88, 0 0 80px #00cc6655; }
       50% { text-shadow: 0 0 60px #00ffaa, 0 0 120px #00ff8877; }
     }
-    #overlay p { color: #6688aa; font-size: 1.05rem; margin: 0.35rem 0; letter-spacing: 3px; }
-    #overlay .sub { color: #334455; font-size: 0.82rem; margin-top: 1.2rem; letter-spacing: 2px; }
+    #overlay p { color: #6688aa; font-size: clamp(0.8rem, 3vw, 1.05rem); margin: 0.35rem 0; letter-spacing: 3px; }
+    #overlay .sub { color: #334455; font-size: clamp(0.7rem, 2.5vw, 0.82rem); margin-top: 1.2rem; letter-spacing: 2px; }
     #overlay.hidden { display: none; }
+
+    /* D-pad */
+    #dpad {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-areas: ". up ." "left . right" ". down .";
+      gap: 6px;
+      z-index: 10;
+    }
+    .dbtn {
+      width: 64px; height: 64px;
+      background: rgba(0, 255, 136, 0.1);
+      border: 2px solid rgba(0, 255, 136, 0.35);
+      border-radius: 14px;
+      color: #00ff88;
+      font-size: 1.6rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.08s, border-color 0.08s;
+    }
+    .dbtn:active, .dbtn.pressed {
+      background: rgba(0, 255, 136, 0.3);
+      border-color: rgba(0, 255, 136, 0.8);
+    }
+    .dbtn[data-d="up"]    { grid-area: up; }
+    .dbtn[data-d="left"]  { grid-area: left; }
+    .dbtn[data-d="right"] { grid-area: right; }
+    .dbtn[data-d="down"]  { grid-area: down; }
   </style>
 </head>
 <body>
   <div id="score">SCORE: 0</div>
-  <div id="overlay" id="overlay">
+  <div id="overlay">
     <h1>SNAKE 3D</h1>
-    <p>ENTER ou ESPAÇO para jogar</p>
-    <p class="sub">WASD &nbsp;|&nbsp; ↑ ↓ ← → para mover</p>
+    <p>TOQUE para jogar</p>
+    <p class="sub">Deslize ou use os botões &nbsp;|&nbsp; WASD / ↑↓←→</p>
+  </div>
+
+  <div id="dpad">
+    <button class="dbtn" data-d="up">▲</button>
+    <button class="dbtn" data-d="left">◀</button>
+    <button class="dbtn" data-d="right">▶</button>
+    <button class="dbtn" data-d="down">▼</button>
   </div>
 
   <script type="importmap">
@@ -61,10 +103,9 @@
   <script type="module">
     import * as THREE from 'three';
 
-    // ── Constants ──────────────────────────────────────────────────────────────
     const GRID = 20;
     const HALF = GRID / 2;
-    const TICK = 140; // ms per step
+    const TICK = 140;
 
     // ── Renderer ───────────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -114,7 +155,6 @@
     gridHelper.position.y = -0.49;
     scene.add(gridHelper);
 
-    // Neon border
     const bPts = [
       [-HALF, -HALF], [HALF, -HALF], [HALF, HALF], [-HALF, HALF], [-HALF, -HALF]
     ].map(([x, z]) => new THREE.Vector3(x, 0.02, z));
@@ -123,7 +163,7 @@
       new THREE.LineBasicMaterial({ color: 0x0066cc })
     ));
 
-    // ── Shared Geometry & Materials ────────────────────────────────────────────
+    // ── Materials & Geometry ───────────────────────────────────────────────────
     const segGeo = new THREE.BoxGeometry(0.86, 0.86, 0.86);
 
     const headMat = new THREE.MeshStandardMaterial({
@@ -135,7 +175,6 @@
       roughness: 0.28, metalness: 0.55
     });
 
-    // Food: icosahedron for a gem look
     const foodMesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(0.44, 1),
       new THREE.MeshStandardMaterial({
@@ -149,9 +188,7 @@
     scene.add(foodMesh);
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-    function toWorld(x, z) {
-      return [x - HALF + 0.5, z - HALF + 0.5];
-    }
+    function toWorld(x, z) { return [x - HALF + 0.5, z - HALF + 0.5]; }
 
     function makeSeg(pos, mat) {
       const m = new THREE.Mesh(segGeo, mat);
@@ -164,16 +201,15 @@
 
     // ── Game State ─────────────────────────────────────────────────────────────
     let snake, dir, nextDir, food, score, alive, tickId;
-    const segs = []; // parallel array to snake[] — each is a Three.js Mesh
+    const segs = [];
 
     const scoreEl = document.getElementById('score');
     const overlay  = document.getElementById('overlay');
 
     function spawnFood() {
       let p;
-      do {
-        p = { x: Math.random() * GRID | 0, z: Math.random() * GRID | 0 };
-      } while (snake.some(s => s.x === p.x && s.z === p.z));
+      do { p = { x: Math.random() * GRID | 0, z: Math.random() * GRID | 0 }; }
+      while (snake.some(s => s.x === p.x && s.z === p.z));
       food = p;
       const [wx, wz] = toWorld(p.x, p.z);
       foodMesh.position.set(wx, 0.5, wz);
@@ -182,18 +218,15 @@
     function resetGame() {
       segs.forEach(m => scene.remove(m));
       segs.length = 0;
-
       snake   = [{ x: 12, z: 10 }, { x: 11, z: 10 }, { x: 10, z: 10 }];
       dir     = { x: 1, z: 0 };
       nextDir = { x: 1, z: 0 };
       score   = 0;
       alive   = true;
-
       snake.forEach((p, i) => segs.push(makeSeg(p, i === 0 ? headMat : bodyMat)));
       spawnFood();
       scoreEl.textContent = 'SCORE: 0';
       overlay.classList.add('hidden');
-
       clearInterval(tickId);
       tickId = setInterval(tick, TICK);
     }
@@ -201,33 +234,15 @@
     function tick() {
       dir = nextDir;
       const nh = { x: snake[0].x + dir.x, z: snake[0].z + dir.z };
-
-      // Wall collision
       if (nh.x < 0 || nh.x >= GRID || nh.z < 0 || nh.z >= GRID) return gameOver();
-
-      // Self collision — exclude tail because it's moving away (unless eating)
       const willEat = nh.x === food.x && nh.z === food.z;
       const body = willEat ? snake : snake.slice(0, -1);
       if (body.some(s => s.x === nh.x && s.z === nh.z)) return gameOver();
-
-      // Remove tail if not eating
-      if (!willEat) {
-        scene.remove(segs.pop());
-        snake.pop();
-      }
-
-      // Downgrade old head to body
+      if (!willEat) { scene.remove(segs.pop()); snake.pop(); }
       if (segs[0]) segs[0].material = bodyMat;
-
-      // Add new head
       segs.unshift(makeSeg(nh, headMat));
       snake.unshift(nh);
-
-      if (willEat) {
-        score++;
-        scoreEl.textContent = `SCORE: ${score}`;
-        spawnFood();
-      }
+      if (willEat) { score++; scoreEl.textContent = `SCORE: ${score}`; spawnFood(); }
     }
 
     function gameOver() {
@@ -236,22 +251,57 @@
       overlay.innerHTML = `
         <h1>GAME OVER</h1>
         <p>PONTUAÇÃO FINAL: ${score}</p>
-        <p class="sub">ENTER ou ESPAÇO para recomeçar</p>
+        <p class="sub">TOQUE ou pressione ENTER para recomeçar</p>
       `;
       overlay.classList.remove('hidden');
     }
 
-    // ── Controls ───────────────────────────────────────────────────────────────
+    // ── Direction helper ───────────────────────────────────────────────────────
+    function applyDir(dx, dz) {
+      if (dx !== 0 && dir.x !== -dx) nextDir = { x: dx, z: 0 };
+      if (dz !== 0 && dir.z !== -dz) nextDir = { x: 0, z: dz };
+    }
+
+    // ── Keyboard ───────────────────────────────────────────────────────────────
     document.addEventListener('keydown', e => {
       const k = e.key;
-      if (k === 'ArrowUp'    || k === 'w' || k === 'W') { if (dir.z !==  1) nextDir = { x: 0, z: -1 }; }
-      if (k === 'ArrowDown'  || k === 's' || k === 'S') { if (dir.z !== -1) nextDir = { x: 0, z:  1 }; }
-      if (k === 'ArrowLeft'  || k === 'a' || k === 'A') { if (dir.x !==  1) nextDir = { x:-1, z:  0 }; }
-      if (k === 'ArrowRight' || k === 'd' || k === 'D') { if (dir.x !== -1) nextDir = { x: 1, z:  0 }; }
+      if (k === 'ArrowUp'    || k === 'w' || k === 'W') applyDir(0, -1);
+      if (k === 'ArrowDown'  || k === 's' || k === 'S') applyDir(0,  1);
+      if (k === 'ArrowLeft'  || k === 'a' || k === 'A') applyDir(-1, 0);
+      if (k === 'ArrowRight' || k === 'd' || k === 'D') applyDir( 1, 0);
       if ((k === 'Enter' || k === ' ') && !alive) resetGame();
-      // Prevent arrow keys from scrolling
       if (k.startsWith('Arrow')) e.preventDefault();
     });
+
+    // ── D-pad buttons ──────────────────────────────────────────────────────────
+    const dirMap = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] };
+    document.querySelectorAll('.dbtn').forEach(btn => {
+      const [dx, dz] = dirMap[btn.dataset.d];
+      const press = e => { e.preventDefault(); applyDir(dx, dz); };
+      btn.addEventListener('touchstart', press, { passive: false });
+      btn.addEventListener('mousedown',  press);
+    });
+
+    // ── Swipe controls ─────────────────────────────────────────────────────────
+    let tx0, ty0;
+    renderer.domElement.addEventListener('touchstart', e => {
+      tx0 = e.touches[0].clientX;
+      ty0 = e.touches[0].clientY;
+      e.preventDefault();
+    }, { passive: false });
+
+    renderer.domElement.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - tx0;
+      const dz = e.changedTouches[0].clientY - ty0;
+      if (Math.abs(dx) < 12 && Math.abs(dz) < 12) return; // tap, ignore
+      if (Math.abs(dx) > Math.abs(dz)) applyDir(dx > 0 ? 1 : -1, 0);
+      else                              applyDir(0, dz > 0 ? 1 : -1);
+      e.preventDefault();
+    }, { passive: false });
+
+    // ── Tap overlay to start / restart ─────────────────────────────────────────
+    overlay.addEventListener('touchstart', e => { e.preventDefault(); resetGame(); }, { passive: false });
+    overlay.addEventListener('click', () => { if (!alive) resetGame(); });
 
     // ── Resize ─────────────────────────────────────────────────────────────────
     window.addEventListener('resize', () => {
@@ -265,26 +315,13 @@
     (function animate() {
       requestAnimationFrame(animate);
       t += 0.016;
-
-      // Food: float + spin + glow pulse
       foodMesh.position.y = 0.5 + Math.sin(t * 2.8) * 0.14;
       foodMesh.rotation.y = t * 1.6;
       foodMesh.rotation.x = t * 0.7;
       foodGlow.intensity = 4 + Math.sin(t * 5) * 1.5;
-
-      // Head glow breathe
       headMat.emissiveIntensity = 0.75 + Math.sin(t * 4) * 0.2;
-
       renderer.render(scene, camera);
     })();
-
-    // ── Start ──────────────────────────────────────────────────────────────────
-    document.addEventListener('keydown', function startOnce(e) {
-      if (e.key === 'Enter' || e.key === ' ') {
-        document.removeEventListener('keydown', startOnce);
-        resetGame();
-      }
-    });
   </script>
 </body>
 </html>
